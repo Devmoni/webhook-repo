@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: webhook-receiver
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -c gunicorn_config.py "app:create_app()"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0 
