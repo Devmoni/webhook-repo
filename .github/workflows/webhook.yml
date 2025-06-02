@@ -1,0 +1,28 @@
+name: Webhook Notifications
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    types: [opened, closed]
+    branches: [ main, master ]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Webhook for Push
+        if: github.event_name == 'push'
+        uses: distributhor/workflow-webhook@v3
+        env:
+          webhook_url: "http://your-webhook-url/webhook/receiver"
+          webhook_secret: "your_webhook_secret"
+          data: '{"event": "push", "repository": "${{ github.repository }}", "commit": "${{ github.sha }}", "ref": "${{ github.ref }}"}'
+
+      - name: Send Webhook for Pull Request
+        if: github.event_name == 'pull_request'
+        uses: distributhor/workflow-webhook@v3
+        env:
+          webhook_url: "http://your-webhook-url/webhook/receiver"
+          webhook_secret: "your_webhook_secret"
+          data: '{"event": "pull_request", "repository": "${{ github.repository }}", "pull_request_id": "${{ github.event.pull_request.id }}", "action": "${{ github.event.action }}"}' 
