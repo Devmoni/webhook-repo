@@ -98,7 +98,7 @@ def receiver():
             return error_response(f"Validation errors: {', '.join(validation_errors)}")
         
         try:
-            # Store both push events and workflow notifications
+            # Store events based on type
             if event_type == 'push':
                 # Store push event
                 push_data = {
@@ -113,6 +113,38 @@ def receiver():
                 mongo.db.events.insert_one(push_data)
                 logger.info("Stored push event in MongoDB")
                 
+            elif event_type == 'pull_request':
+                # Store pull request event
+                pr_data = {
+                    'event_type': 'pull_request',
+                    'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+                    'action': payload.get('action'),
+                    'pull_request_id': payload.get('pull_request', {}).get('id'),
+                    'title': payload.get('pull_request', {}).get('title'),
+                    'from_branch': payload.get('pull_request', {}).get('head', {}).get('ref'),
+                    'to_branch': payload.get('pull_request', {}).get('base', {}).get('ref'),
+                    'author': payload.get('sender', {}).get('login'),
+                    'repository': payload.get('repository', {}).get('full_name'),
+                    'merged': payload.get('pull_request', {}).get('merged', False)
+                }
+                mongo.db.events.insert_one(pr_data)
+                logger.info("Stored pull request event in MongoDB")
+
+                # If PR is merged, create a merge event
+                if payload.get('action') == 'closed' and payload.get('pull_request', {}).get('merged', False):
+                    merge_data = {
+                        'event_type': 'merge',
+                        'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+                        'pull_request_id': payload.get('pull_request', {}).get('id'),
+                        'from_branch': payload.get('pull_request', {}).get('head', {}).get('ref'),
+                        'to_branch': payload.get('pull_request', {}).get('base', {}).get('ref'),
+                        'author': payload.get('sender', {}).get('login'),
+                        'repository': payload.get('repository', {}).get('full_name'),
+                        'merge_commit_sha': payload.get('pull_request', {}).get('merge_commit_sha')
+                    }
+                    mongo.db.events.insert_one(merge_data)
+                    logger.info("Stored merge event in MongoDB")
+            
             elif event_type == 'workflow_run':
                 # Store workflow notification
                 workflow_run = payload.get('workflow_run', {})
